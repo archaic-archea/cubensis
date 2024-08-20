@@ -27,7 +27,38 @@ VRAM can be accessed directly by the Milk Cap processor, this includes extremely
 The Milk Cap includes a register file supporting 8 'static' registers, these are guaranteed to always be visible in the register file. It also supports 24 more 'rotating' registers, these may be swapped around through the RTOS requesting a register rotation. This remaps the rotating registers to a new set of actual registers, this new window of registers may overlap with the previous window. Milk Cap processor implementations are required to implement 8 static registers, and at least 48 rotating registers. Upon a rotation request that may take up any space remaining in the register file the processor must write it out to the location specified in the "Register File Stack" register, this region does not need to be viewed by the operating system or other software, so the processor may do whatever it pleases to write out currently out of frame registers to the region, as long as data is not lost or corrupted.
 
 ## Execution Units
-Milk Cap includes four execution types, and can support up to 8 execution units. The exact bundle format expected by a processor will vary by implementation, but every instruction bundle should be 256 bits. The instruction bundles are split up into 8 seperate 32 bit instructions, each instruction directly interacts with it's given instruction unit. If multiple instructions within a given bundle read/write from overlapping registers, then the processor must guarantee that the write actions will not be present until at least the next cycle. If multiple instructions in a bundle write to overlapping registers then the behavior is specific to each processor, and possibly undefined. Milk Caps can have any combination of Integer, Memory, Special, and Immediate execution units.
+Milk Cap includes four execution types, and can support up to 8 execution units. The exact bundle format expected by a processor will vary by implementation, but every instruction bundle should be 256 bits. The instruction bundles are split up into 8 seperate 32 bit instructions, each instruction directly interacts with it's given instruction unit. If multiple instructions within a given bundle read/write from overlapping registers, then the processor must guarantee that the write actions will not be present until at least the next cycle. If multiple instructions in a bundle write to overlapping registers then the behavior is specific to each processor, and possibly undefined. Milk Caps can have any combination of Integer, Memory, Special, and Immediate execution units. Some Milk Cap slots may be empty, meaning the section is ignored in the processor, these spots can not generate any architecturally visible effects.
 
 ### Integer Execution Unit
-The integer execution unit provides various mathematical processing utilities, these include bitwise operations, as well as arithmetic operations. Any given implementation must have at least one integer execution unit.
+The integer execution unit provides various mathematical processing utilities, these include bitwise operations, as well as arithmetic operations. Any given implementation must have at least one integer execution unit. The integer unit provides the following instruction format.
+
+| Bit(s)  | Use                                |
+| ------- | ---------------------------------- |
+| 0 - 5   | Opcodes less than 0b100000         |
+| 6 - 11  | r0                                 |
+| 12 - 17 | r1                                 |
+| 18 - 23 | r2                                 |
+| 24 - 31 | imm 8 bits, up to 256              |
+
+| Bit(s)  | Use                                |
+| ------- | ---------------------------------- |
+| 0 - 5   | Opcodes greater than 0b11111       |
+| 6 - 11  | r0                                 |
+| 12 - 17 | r1                                 |
+| 18 - 31 | imm 14 bits, up to 16k             |
+
+It also provides the following instructions.
+
+| Opcode | Name | Use                    |
+| ------ | ---- | ---------------------- |
+| 000000 | zero | r0 = 0                 |
+| 000001 | max  | r0 = -1                |
+| 000010 | sub  | r0 = r1 - (r2 + imm)   |
+| 000011 | add  | r0 = r1 + (r2 + imm)   |
+| 000100 | lsl  | r0 = r1 << (r2 + imm)  |
+| 000101 | lsr  | r0 = r1 >> (r2 + imm)  |
+| 000110 | asr  | r0 = r1 >>> (r2 + imm) |
+| 000111 | not  | r0 = !(r1 + imm)       |
+| 001000 | or   | r0 = r1 | (r2 + imm)   |
+| 001001 | xor  | r0 = r1 ^ (r2 + imm)   |
+| 001010 | and  | r0 = r1 & (r2 + imm)   |
